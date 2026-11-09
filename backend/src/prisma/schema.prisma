@@ -1,0 +1,315 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  FINANCE_USER
+  TEAM_MEMBER
+  EXECUTIVE
+  SYSTEM_ADMIN
+}
+
+enum InitiativeStatus {
+  DRAFT
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MilestoneStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  OVERDUE
+}
+
+enum RiskSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATING
+  RESOLVED
+  ACCEPTED
+  CLOSED
+}
+
+enum DecisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DEFERRED
+  IMPLEMENTED
+}
+
+enum DependencyStatus {
+  ACTIVE
+  RESOLVED
+  BLOCKED
+}
+
+enum AgentActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+}
+
+// Models
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          UserRole
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  initiatives   Initiative[]   @relation("InitiativeOwner")
+  milestones    Milestone[]    @relation("MilestoneOwner")
+  risks         Risk[]         @relation("RiskOwner")
+  decisions     Decision[]     @relation("DecisionOwner")
+  agentActions  AgentAction[]  @relation("AgentActionActor")
+  approvals     AgentAction[]  @relation("AgentActionApprover")
+  auditLogs     AuditLog[]     @relation("AuditActor")
+  notifications Notification[] @relation("NotificationRecipient")
+}
+
+model Initiative {
+  id              Int               @id @default(autoincrement())
+  name            String
+  description     String?
+  status          InitiativeStatus
+  priority        Priority
+  ownerId         Int
+  startDate       DateTime?
+  targetEndDate   DateTime?
+  actualEndDate   DateTime?
+  budget          Decimal?          @db.Decimal(12, 2)
+  department      String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  owner           User              @relation("InitiativeOwner", fields: [ownerId], references: [id])
+  milestones      Milestone[]
+  risks           Risk[]
+  decisions       Decision[]
+  benefits        Benefit[]
+  adoptionSignals AdoptionSignal[]
+  agentActions    AgentAction[]
+  dependenciesFrom Dependency[]     @relation("DependencyFrom")
+  dependenciesTo  Dependency[]     @relation("DependencyTo")
+}
+
+model Milestone {
+  id              Int             @id @default(autoincrement())
+  name            String
+  description     String?
+  status          MilestoneStatus
+  targetDate      DateTime
+  completedDate   DateTime?
+  initiativeId    Int
+  ownerId         Int
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  initiative      Initiative      @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  owner           User            @relation("MilestoneOwner", fields: [ownerId], references: [id])
+}
+
+model Risk {
+  id                      Int           @id @default(autoincrement())
+  title                   String
+  description             String?
+  category                String
+  severity                RiskSeverity
+  status                  RiskStatus
+  probability             Decimal       @db.Decimal(12, 2)
+  impactScore             Decimal       @db.Decimal(12, 2)
+  initiativeId            Int
+  ownerId                 Int
+  identifiedDate          DateTime      @default(now())
+  mitigationTargetDate    DateTime?
+  resolvedDate            DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  // Relations
+  initiative              Initiative    @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  owner                   User          @relation("RiskOwner", fields: [ownerId], references: [id])
+}
+
+model Decision {
+  id                          Int               @id @default(autoincrement())
+  title                       String
+  description                 String?
+  decisionType                String
+  status                      DecisionStatus
+  initiativeId                Int
+  ownerId                     Int
+  implementationTargetDate    DateTime?
+  decidedAt                   DateTime?
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+
+  // Relations
+  initiative                  Initiative        @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  owner                       User              @relation("DecisionOwner", fields: [ownerId], references: [id])
+}
+
+model Benefit {
+  id                  Int           @id @default(autoincrement())
+  title               String
+  description         String?
+  estimatedValue      Decimal?      @db.Decimal(12, 2)
+  realizedValue       Decimal       @default(0) @db.Decimal(12, 2)
+  measurementUnit     String
+  initiativeId        Int
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  initiative          Initiative    @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+}
+
+model AdoptionSignal {
+  id              Int           @id @default(autoincrement())
+  metricName      String
+  currentValue    Decimal       @db.Decimal(12, 2)
+  targetValue     Decimal       @db.Decimal(12, 2)
+  measuredAt      DateTime      @default(now())
+  initiativeId    Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  initiative      Initiative    @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+
+  @@index([initiativeId, measuredAt])
+}
+
+model Dependency {
+  id                  Int               @id @default(autoincrement())
+  fromInitiativeId    Int
+  toInitiativeId      Int
+  dependencyType      String
+  status              DependencyStatus
+  description         String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  fromInitiative      Initiative        @relation("DependencyFrom", fields: [fromInitiativeId], references: [id], onDelete: Cascade)
+  toInitiative        Initiative        @relation("DependencyTo", fields: [toInitiativeId], references: [id], onDelete: Cascade)
+
+  @@unique([fromInitiativeId, toInitiativeId])
+}
+
+model AgentAction {
+  id              Int               @id @default(autoincrement())
+  actionType      String
+  plan            String
+  evidence        String?
+  confidenceScore Decimal           @db.Decimal(12, 2)
+  status          AgentActionStatus
+  initiativeId    Int
+  actorId         Int
+  approverId      Int?
+  approvedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  initiative      Initiative        @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  actor           User              @relation("AgentActionActor", fields: [actorId], references: [id])
+  approver        User?             @relation("AgentActionApprover", fields: [approverId], references: [id])
+}
+
+model AuditLog {
+  id              Int           @id @default(autoincrement())
+  entityType      String
+  entityId        Int
+  action          AuditAction
+  oldValues       Json?
+  newValues       Json?
+  actorId         Int?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  actor           User?         @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Configuration {
+  id              Int           @id @default(autoincrement())
+  key             String        @unique
+  value           String
+  description     String?
+  category        String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Notification {
+  id              Int               @id @default(autoincrement())
+  title           String
+  message         String
+  type            NotificationType
+  isRead          Boolean           @default(false)
+  recipientId     Int
+  entityType      String?
+  entityId        Int?
+  createdAt       DateTime          @default(now())
+
+  // Relations
+  recipient       User              @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead])
+  @@index([createdAt])
+}

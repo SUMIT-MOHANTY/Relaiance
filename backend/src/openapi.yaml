@@ -1,0 +1,2274 @@
+openapi: 3.0.3
+info:
+  title: DERTOUR Portfolio Control Tower API
+  description: |
+    Backend API for DERTOUR Group Functions Portfolio Control Tower.
+    Supports portfolio management, risk tracking, decision workflows, and AI-driven agent actions.
+  version: 1.0.0
+  contact:
+    name: DERTOUR IT Support
+    email: it-support@dertour.de
+  license:
+    name: Proprietary
+    url: https://dertour.de
+
+servers:
+  - url: http://localhost:4000/api
+    description: Local development server
+  - url: https://api.dertour.de/api
+    description: Production server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication and user management
+  - name: Initiatives
+    description: Portfolio initiative management
+  - name: Milestones
+    description: Project milestone tracking
+  - name: Risks
+    description: Risk identification and mitigation
+  - name: Decisions
+    description: Decision workflows and approvals
+  - name: Benefits
+    description: Benefit tracking and realization
+  - name: Adoption Signals
+    description: Adoption metrics and trend analysis
+  - name: Dependencies
+    description: Initiative dependency management
+  - name: Agent Actions
+    description: AI-driven automated actions
+  - name: Reporting
+    description: Dashboard and report generation
+  - name: Admin
+    description: System administration and configuration
+
+paths:
+  # Health
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check endpoint
+      description: Returns service health status
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  service:
+                    type: string
+                    example: dertour-api
+
+  # Auth Endpoints
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: User login
+      description: Authenticate user and issue JWT tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@dertour.de
+                password:
+                  type: string
+                  format: password
+                  example: securePassword123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: User registration
+      description: Register a new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - firstName
+                - lastName
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      description: Get new access token using refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/profile:
+    get:
+      tags:
+        - Auth
+      summary: Get user profile
+      description: Get current authenticated user profile
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/profile:
+    put:
+      tags:
+        - Auth
+      summary: Update user profile
+      description: Update current user profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                department:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  # Users Endpoints (Admin)
+  /users:
+    get:
+      tags:
+        - Admin
+      summary: List all users
+      description: Get paginated list of users (Admin only)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [FINANCE_USER, TEAM_MEMBER, EXECUTIVE, SYSTEM_ADMIN]
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /users/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+
+    put:
+      tags:
+        - Admin
+      summary: Update user
+      description: Update user role, status, or other fields (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [FINANCE_USER, TEAM_MEMBER, EXECUTIVE, SYSTEM_ADMIN]
+                isActive:
+                  type: boolean
+                department:
+                  type: string
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete user
+      description: Soft delete user account (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: User deleted
+
+  # Initiatives Endpoints
+  /initiatives:
+    get:
+      tags:
+        - Initiatives
+      summary: List initiatives
+      description: Get paginated list of initiatives with filtering
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, ACTIVE, ON_HOLD, COMPLETED, CANCELLED]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        - name: department
+          in: query
+          schema:
+            type: string
+        - name: ownerId
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+            example: -updatedAt
+      responses:
+        '200':
+          description: List of initiatives
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Initiative'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags:
+        - Initiatives
+      summary: Create initiative
+      description: Create a new portfolio initiative
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitiativeInput'
+      responses:
+        '201':
+          description: Initiative created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Initiative'
+
+  /initiatives/summary:
+    get:
+      tags:
+        - Initiatives
+      summary: Get initiatives summary
+      description: Get aggregated statistics for initiatives dashboard
+      responses:
+        '200':
+          description: Summary statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  byStatus:
+                    type: object
+                  byPriority:
+                    type: object
+                  atRiskCount:
+                    type: integer
+
+  /initiatives/{id}:
+    get:
+      tags:
+        - Initiatives
+      summary: Get initiative by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Initiative found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitiativeDetail'
+        '404':
+          description: Initiative not found
+
+    put:
+      tags:
+        - Initiatives
+      summary: Update initiative
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitiativeInput'
+      responses:
+        '200':
+          description: Initiative updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Initiative'
+
+    delete:
+      tags:
+        - Initiatives
+      summary: Delete initiative
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Initiative deleted
+
+  /initiatives/{id}/milestones:
+    get:
+      tags:
+        - Initiatives
+        - Milestones
+      summary: Get initiative milestones
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of milestones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Milestone'
+
+  /initiatives/{id}/risks:
+    get:
+      tags:
+        - Initiatives
+        - Risks
+      summary: Get initiative risks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of risks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Risk'
+
+  /initiatives/{id}/decisions:
+    get:
+      tags:
+        - Initiatives
+        - Decisions
+      summary: Get initiative decisions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Decision'
+
+  /initiatives/{id}/benefits:
+    get:
+      tags:
+        - Initiatives
+        - Benefits
+      summary: Get initiative benefits
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of benefits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Benefit'
+
+  /initiatives/{id}/adoption-signals:
+    get:
+      tags:
+        - Initiatives
+        - Adoption Signals
+      summary: Get initiative adoption signals
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of adoption signals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdoptionSignal'
+
+  # Milestones Endpoints
+  /milestones:
+    get:
+      tags:
+        - Milestones
+      summary: List all milestones
+      parameters:
+        - name: initiativeId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [NOT_STARTED, IN_PROGRESS, COMPLETED, BLOCKED, OVERDUE]
+      responses:
+        '200':
+          description: List of milestones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Milestone'
+
+    post:
+      tags:
+        - Milestones
+      summary: Create milestone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneInput'
+      responses:
+        '201':
+          description: Milestone created
+
+  /milestones/{id}:
+    get:
+      tags:
+        - Milestones
+      summary: Get milestone by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Milestone found
+
+    put:
+      tags:
+        - Milestones
+      summary: Update milestone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneInput'
+      responses:
+        '200':
+          description: Milestone updated
+
+    delete:
+      tags:
+        - Milestones
+      summary: Delete milestone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Milestone deleted
+
+  # Risks Endpoints
+  /risks:
+    get:
+      tags:
+        - Risks
+      summary: List all risks
+      parameters:
+        - name: initiativeId
+          in: query
+          schema:
+            type: integer
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [OPEN, MITIGATING, RESOLVED, ACCEPTED, CLOSED]
+      responses:
+        '200':
+          description: List of risks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Risk'
+
+    post:
+      tags:
+        - Risks
+      summary: Create risk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskInput'
+      responses:
+        '201':
+          description: Risk created
+
+  /risks/{id}:
+    get:
+      tags:
+        - Risks
+      summary: Get risk by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Risk found
+
+    put:
+      tags:
+        - Risks
+      summary: Update risk
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskInput'
+      responses:
+        '200':
+          description: Risk updated
+
+    delete:
+      tags:
+        - Risks
+      summary: Delete risk
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Risk deleted
+
+  # Decisions Endpoints
+  /decisions:
+    get:
+      tags:
+        - Decisions
+      summary: List all decisions
+      parameters:
+        - name: initiativeId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, DEFERRED, IMPLEMENTED]
+      responses:
+        '200':
+          description: List of decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Decision'
+
+    post:
+      tags:
+        - Decisions
+      summary: Create decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '201':
+          description: Decision created
+
+  /decisions/{id}:
+    get:
+      tags:
+        - Decisions
+      summary: Get decision by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Decision found
+
+    put:
+      tags:
+        - Decisions
+      summary: Update decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '200':
+          description: Decision updated
+
+    delete:
+      tags:
+        - Decisions
+      summary: Delete decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Decision deleted
+
+  /decisions/{id}/approve:
+    post:
+      tags:
+        - Decisions
+      summary: Approve decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rationale:
+                  type: string
+      responses:
+        '200':
+          description: Decision approved
+
+  /decisions/{id}/reject:
+    post:
+      tags:
+        - Decisions
+      summary: Reject decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rationale:
+                  type: string
+      responses:
+        '200':
+          description: Decision rejected
+
+  # Benefits Endpoints
+  /benefits:
+    get:
+      tags:
+        - Benefits
+      summary: List all benefits
+      parameters:
+        - name: initiativeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of benefits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Benefit'
+
+    post:
+      tags:
+        - Benefits
+      summary: Create benefit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenefitInput'
+      responses:
+        '201':
+          description: Benefit created
+
+  /benefits/{id}:
+    get:
+      tags:
+        - Benefits
+      summary: Get benefit by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Benefit found
+
+    put:
+      tags:
+        - Benefits
+      summary: Update benefit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenefitInput'
+      responses:
+        '200':
+          description: Benefit updated
+
+    delete:
+      tags:
+        - Benefits
+      summary: Delete benefit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Benefit deleted
+
+  # Adoption Signals Endpoints
+  /adoption-signals:
+    get:
+      tags:
+        - Adoption Signals
+      summary: List all adoption signals
+      parameters:
+        - name: initiativeId
+          in: query
+          schema:
+            type: integer
+        - name: metricName
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of adoption signals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdoptionSignal'
+
+    post:
+      tags:
+        - Adoption Signals
+      summary: Create adoption signal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdoptionSignalInput'
+      responses:
+        '201':
+          description: Adoption signal created
+
+  /adoption-signals/{id}:
+    get:
+      tags:
+        - Adoption Signals
+      summary: Get adoption signal by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Adoption signal found
+
+    put:
+      tags:
+        - Adoption Signals
+      summary: Update adoption signal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdoptionSignalInput'
+      responses:
+        '200':
+          description: Adoption signal updated
+
+    delete:
+      tags:
+        - Adoption Signals
+      summary: Delete adoption signal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Adoption signal deleted
+
+  # Dependencies Endpoints
+  /dependencies:
+    get:
+      tags:
+        - Dependencies
+      summary: List all dependencies
+      parameters:
+        - name: fromInitiativeId
+          in: query
+          schema:
+            type: integer
+        - name: toInitiativeId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, RESOLVED, BLOCKED]
+      responses:
+        '200':
+          description: List of dependencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dependency'
+
+    post:
+      tags:
+        - Dependencies
+      summary: Create dependency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DependencyInput'
+      responses:
+        '201':
+          description: Dependency created
+
+  /dependencies/{id}:
+    get:
+      tags:
+        - Dependencies
+      summary: Get dependency by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dependency found
+
+    put:
+      tags:
+        - Dependencies
+      summary: Update dependency
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DependencyInput'
+      responses:
+        '200':
+          description: Dependency updated
+
+    delete:
+      tags:
+        - Dependencies
+      summary: Delete dependency
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Dependency deleted
+
+  # Agent Actions Endpoints
+  /agent-actions:
+    get:
+      tags:
+        - Agent Actions
+      summary: List all agent actions
+      parameters:
+        - name: initiativeId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, EXECUTED]
+        - name: actorId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of agent actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentAction'
+
+    post:
+      tags:
+        - Agent Actions
+      summary: Create agent action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentActionInput'
+      responses:
+        '201':
+          description: Agent action created
+
+  /agent-actions/{id}:
+    get:
+      tags:
+        - Agent Actions
+      summary: Get agent action by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Agent action found
+
+    put:
+      tags:
+        - Agent Actions
+      summary: Update agent action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentActionInput'
+      responses:
+        '200':
+          description: Agent action updated
+
+  /agent-actions/{id}/approve:
+    post:
+      tags:
+        - Agent Actions
+      summary: Approve agent action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Agent action approved
+
+  /agent-actions/{id}/reject:
+    post:
+      tags:
+        - Agent Actions
+      summary: Reject agent action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Agent action rejected
+
+  /agent-actions/{id}/execute:
+    post:
+      tags:
+        - Agent Actions
+      summary: Execute agent action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Agent action executed
+
+  # Reporting Endpoints
+  /reporting/portfolio-summary:
+    get:
+      tags:
+        - Reporting
+      summary: Get portfolio summary report
+      description: Executive dashboard data
+      responses:
+        '200':
+          description: Portfolio summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalInitiatives:
+                    type: integer
+                  activeInitiatives:
+                    type: integer
+                  atRiskInitiatives:
+                    type: integer
+                  totalBudget:
+                    type: number
+                  totalRealizedBenefits:
+                    type: number
+
+  /reporting/executive-dashboard:
+    get:
+      tags:
+        - Reporting
+      summary: Get executive dashboard
+      description: High-level metrics for executives
+      responses:
+        '200':
+          description: Executive dashboard data
+
+  /reporting/initiative-health:
+    get:
+      tags:
+        - Reporting
+      summary: Get initiative health report
+      parameters:
+        - name: initiativeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Initiative health metrics
+
+  /reporting/export:
+    post:
+      tags:
+        - Reporting
+      summary: Export report
+      description: Generate and export reports in various formats
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [PDF, CSV, XLSX]
+                reportType:
+                  type: string
+                filters:
+                  type: object
+      responses:
+        '200':
+          description: Export generated
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # Admin Endpoints
+  /admin/audit-logs:
+    get:
+      tags:
+        - Admin
+      summary: Get audit logs
+      description: System audit trail (Admin only)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [CREATE, UPDATE, DELETE, APPROVE, REJECT]
+        - name: actorId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /admin/configurations:
+    get:
+      tags:
+        - Admin
+      summary: Get system configurations
+      responses:
+        '200':
+          description: List of configurations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Configuration'
+
+    post:
+      tags:
+        - Admin
+      summary: Create configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigurationInput'
+      responses:
+        '201':
+          description: Configuration created
+
+  /admin/configurations/{key}:
+    get:
+      tags:
+        - Admin
+      summary: Get configuration by key
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Configuration found
+
+    put:
+      tags:
+        - Admin
+      summary: Update configuration
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Configuration updated
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete configuration
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Configuration deleted
+
+  /admin/data-import:
+    post:
+      tags:
+        - Admin
+      summary: Import data
+      description: Bulk import initiatives and related data
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                dataType:
+                  type: string
+                  enum: [INITIATIVES, MILESTONES, RISKS, BENEFITS]
+      responses:
+        '200':
+          description: Import completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported:
+                    type: integer
+                  errors:
+                    type: integer
+                  messages:
+                    type: array
+                    items:
+                      type: string
+
+  /admin/reseed:
+    post:
+      tags:
+        - Admin
+      summary: Reseed database
+      description: Reset and reseed database with initial data (Admin only)
+      responses:
+        '200':
+          description: Database reseeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /auth/login
+
+  schemas:
+    # Common Schemas
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
+    # User Schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [FINANCE_USER, TEAM_MEMBER, EXECUTIVE, SYSTEM_ADMIN]
+        isActive:
+          type: boolean
+        department:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserInput:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [FINANCE_USER, TEAM_MEMBER, EXECUTIVE, SYSTEM_ADMIN]
+        department:
+          type: string
+
+    # Initiative Schemas
+    Initiative:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, ON_HOLD, COMPLETED, CANCELLED]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        ownerId:
+          type: integer
+        owner:
+          $ref: '#/components/schemas/User'
+        startDate:
+          type: string
+          format: date-time
+        targetEndDate:
+          type: string
+          format: date-time
+        actualEndDate:
+          type: string
+          format: date-time
+        budget:
+          type: number
+        department:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    InitiativeInput:
+      type: object
+      required:
+        - name
+        - status
+        - priority
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, ON_HOLD, COMPLETED, CANCELLED]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        ownerId:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+        targetEndDate:
+          type: string
+          format: date-time
+        budget:
+          type: number
+        department:
+          type: string
+
+    InitiativeDetail:
+      allOf:
+        - $ref: '#/components/schemas/Initiative'
+        - type: object
+          properties:
+            milestones:
+              type: array
+              items:
+                $ref: '#/components/schemas/Milestone'
+            risks:
+              type: array
+              items:
+                $ref: '#/components/schemas/Risk'
+            decisions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Decision'
+            benefits:
+              type: array
+              items:
+                $ref: '#/components/schemas/Benefit'
+            adoptionSignals:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdoptionSignal'
+
+    # Milestone Schemas
+    Milestone:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [NOT_STARTED, IN_PROGRESS, COMPLETED, BLOCKED, OVERDUE]
+        targetDate:
+          type: string
+          format: date-time
+        completedDate:
+          type: string
+          format: date-time
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+        owner:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MilestoneInput:
+      type: object
+      required:
+        - name
+        - status
+        - targetDate
+        - initiativeId
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [NOT_STARTED, IN_PROGRESS, COMPLETED, BLOCKED, OVERDUE]
+        targetDate:
+          type: string
+          format: date-time
+        completedDate:
+          type: string
+          format: date-time
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+
+    # Risk Schemas
+    Risk:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        status:
+          type: string
+          enum: [OPEN, MITIGATING, RESOLVED, ACCEPTED, CLOSED]
+        probability:
+          type: number
+        impactScore:
+          type: number
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+        owner:
+          $ref: '#/components/schemas/User'
+        identifiedDate:
+          type: string
+          format: date-time
+        mitigationTargetDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    RiskInput:
+      type: object
+      required:
+        - title
+        - category
+        - severity
+        - status
+        - initiativeId
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        status:
+          type: string
+          enum: [OPEN, MITIGATING, RESOLVED, ACCEPTED, CLOSED]
+        probability:
+          type: number
+        impactScore:
+          type: number
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+        mitigationTargetDate:
+          type: string
+          format: date-time
+
+    # Decision Schemas
+    Decision:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        decisionType:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, DEFERRED, IMPLEMENTED]
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+        owner:
+          $ref: '#/components/schemas/User'
+        implementationTargetDate:
+          type: string
+          format: date-time
+        decidedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DecisionInput:
+      type: object
+      required:
+        - title
+        - decisionType
+        - status
+        - initiativeId
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        decisionType:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, DEFERRED, IMPLEMENTED]
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+        implementationTargetDate:
+          type: string
+          format: date-time
+
+    # Benefit Schemas
+    Benefit:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        estimatedValue:
+          type: number
+        realizedValue:
+          type: number
+        measurementUnit:
+          type: string
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+        owner:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BenefitInput:
+      type: object
+      required:
+        - title
+        - estimatedValue
+        - measurementUnit
+        - initiativeId
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        estimatedValue:
+          type: number
+        realizedValue:
+          type: number
+        measurementUnit:
+          type: string
+        initiativeId:
+          type: integer
+        ownerId:
+          type: integer
+
+    # Adoption Signal Schemas
+    AdoptionSignal:
+      type: object
+      properties:
+        id:
+          type: integer
+        metricName:
+          type: string
+        currentValue:
+          type: number
+        targetValue:
+          type: number
+        measuredAt:
+          type: string
+          format: date-time
+        initiativeId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    AdoptionSignalInput:
+      type: object
+      required:
+        - metricName
+        - currentValue
+        - targetValue
+        - measuredAt
+        - initiativeId
+      properties:
+        metricName:
+          type: string
+        currentValue:
+          type: number
+        targetValue:
+          type: number
+        measuredAt:
+          type: string
+          format: date-time
+        initiativeId:
+          type: integer
+
+    # Dependency Schemas
+    Dependency:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromInitiativeId:
+          type: integer
+        fromInitiative:
+          $ref: '#/components/schemas/Initiative'
+        toInitiativeId:
+          type: integer
+        toInitiative:
+          $ref: '#/components/schemas/Initiative'
+        dependencyType:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, RESOLVED, BLOCKED]
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DependencyInput:
+      type: object
+      required:
+        - fromInitiativeId
+        - toInitiativeId
+        - dependencyType
+      properties:
+        fromInitiativeId:
+          type: integer
+        toInitiativeId:
+          type: integer
+        dependencyType:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, RESOLVED, BLOCKED]
+        description:
+          type: string
+
+    # Agent Action Schemas
+    AgentAction:
+      type: object
+      properties:
+        id:
+          type: integer
+        actionType:
+          type: string
+        plan:
+          type: string
+        evidence:
+          type: string
+        confidenceScore:
+          type: number
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, EXECUTED]
+        initiativeId:
+          type: integer
+        initiative:
+          $ref: '#/components/schemas/Initiative'
+        actorId:
+          type: integer
+        actor:
+          $ref: '#/components/schemas/User'
+        approverId:
+          type: integer
+        approver:
+          $ref: '#/components/schemas/User'
+        approvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AgentActionInput:
+      type: object
+      required:
+        - actionType
+        - plan
+        - initiativeId
+        - actorId
+      properties:
+        actionType:
+          type: string
+        plan:
+          type: string
+        evidence:
+          type: string
+        confidenceScore:
+          type: number
+        initiativeId:
+          type: integer
+        actorId:
+          type: integer
+
+    # Audit Log Schemas
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        entityType:
+          type: string
+        entityId:
+          type: integer
+        action:
+          type: string
+          enum: [CREATE, UPDATE, DELETE, APPROVE, REJECT]
+        oldValues:
+          type: object
+        newValues:
+          type: object
+        actorId:
+          type: integer
+        actor:
+          $ref: '#/components/schemas/User'
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # Configuration Schemas
+    Configuration:
+      type: object
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ConfigurationInput:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+
+    # Notification Schemas
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [INFO, WARNING, ERROR, SUCCESS]
+        isRead:
+          type: boolean
+        recipientId:
+          type: integer
+        entityType:
+          type: string
+        entityId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
