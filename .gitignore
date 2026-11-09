@@ -10,11 +10,3 @@
 .agent_signals
 .agent_initialized
 .package_deps_hash
-
-node_modules/
-**/node_modules/**
-.agent_worktrees/
-*.log
-dist/
-build/
-
